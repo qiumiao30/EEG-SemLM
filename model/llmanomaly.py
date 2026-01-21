@@ -30,32 +30,74 @@ class Model(nn.Module):
 
         self.fusion = MutualInfoModel(configs['d_model'], configs['d_model'], seq_len=configs['seq_len'], latent_size=configs['d_model'])
 
-    def construct_dynamic_prompt(self, x_enc):
+    def construct_dynamic_prompt(self, x_enc, channel_names=None):
         """
-        Construct a concise and focused prompt for EEG anomaly detection based on input data.
+        Construct a structured prompt for EEG seizure prediction based on input data.
+        Follows the format specified in the paper/documentation.
         """
-        # Compute basic statistics for x_enc
-        means = x_enc.mean(dim=1)  # Mean across sequence dimension
-        stdev = torch.std(x_enc, dim=1)  # Standard deviation across sequence dimension
-        max_vals = x_enc.max(dim=1).values  # Maximum values along sequence
-        min_vals = x_enc.min(dim=1).values  # Minimum values along sequence
+        # For private dataset
+        if channel_names is None:
+            channel_names = ['Fp1', 'Fp2', 'F3', 'F4', 'F7', 'F8', 'T3', 'T4', 
+                            'C3', 'C4', 'P3', 'P4', 'O1', 'O2', 'T5', 'T6', 
+                            'Pz', 'Cz', 'Fz']
+        
+        # Compute statistics for each channel
+        # x_enc shape: [batch_size, seq_len, num_channels]
+        channel_means = x_enc.mean(dim=1)  # Mean across sequence for each channel
+        
+        # Define anatomical brain region groups
+        frontal_indices = [channel_names.index(ch) for ch in ['Fp1', 'Fp2', 'F3', 'F4', 'F7', 'F8'] if ch in channel_names]
+        temporal_indices = [channel_names.index(ch) for ch in ['T3', 'T4', 'T5', 'T6'] if ch in channel_names]
+        central_indices = [channel_names.index(ch) for ch in ['C3', 'C4'] if ch in channel_names]
+        parietal_indices = [channel_names.index(ch) for ch in ['P3', 'P4'] if ch in channel_names]
+        occipital_indices = [channel_names.index(ch) for ch in ['O1', 'O2'] if ch in channel_names]
+        midline_indices = [channel_names.index(ch) for ch in ['Fz', 'Cz', 'Pz'] if ch in channel_names]
+        
+        # Calculate group averages
+        def calculate_group_average(indices):
+            if indices:
+                group_vals = channel_means[:, indices]
+                return group_vals.mean().item()
+            return 0.0
+        
+        frontal_avg = calculate_group_average(frontal_indices)
+        temporal_avg = calculate_group_average(temporal_indices)
+        central_avg = calculate_group_average(central_indices)
+        parietal_avg = calculate_group_average(parietal_indices)
+        occipital_avg = calculate_group_average(occipital_indices)
+        midline_avg = calculate_group_average(midline_indices)
+        
+        # Construct the prompt following the specified format
+        prompt = f"""Task: Seizure prediction in EEG data
 
-        # Calculate mean and std deviation across the batch
-        mean_value = means.mean().item()
-        stdev_value = stdev.mean().item()
-        max_value = max_vals.mean().item()
-        min_value = min_vals.mean().item()
+        Monitored Variables: {', '.join(channel_names)}
 
-        # Construct the prompt
-        prompt = (f"EEG anomaly detection. Signal: avg={mean_value:.2f}, std={stdev_value:.2f}, "
-                f"range=({min_value:.2f}, {max_value:.2f}). "
-                "EEG bands: Alpha (8-13 Hz), Beta (13-30 Hz), Delta (0.5-4 Hz), Theta (4-8 Hz). "
-                "Focus on detecting spikes, sudden amplitude shifts, or unusual frequency patterns. "
-                "Anomalies may include epileptic spikes, seizures, or sleep-related patterns, "
-                "often reflected in abnormal signal changes or extreme deviations in specific channels.")
+        Anatomical Brain Regions Division:
+        Frontal group (cognitive control-related activity): Fp1, Fp2, F3, F4, F7, F8
+        Temporal group (memory-related processing): T3, T4, T5, T6
+        Central group (motor-related activity): C3, C4
+        Parietal group (sensory integration): P3, P4
+        Occipital group (visual perception): O1, O2
+        Midline group (global cognitive state monitoring): Fz, Cz, Pz
+
+        Anomaly Indicators: Sudden signal spikes, disrupted frequency patterns, persistent abnormal patterns and other anomalies.
+
+        Historical Data:
+
+        Feature Group Analysis:
+        Frontal Group Avg: {frontal_avg:.4f}
+        Temporal Group Avg: {temporal_avg:.4f}
+        Central Group Avg: {central_avg:.4f}
+        Parietal Group Avg: {parietal_avg:.4f}
+        Occipital Group Avg: {occipital_avg:.4f}
+        Midline Group Avg: {midline_avg:.4f}
+
+        Anomaly Detection Request:
+        Predict the next timestamp's values and identify anomalies. Provide details on:
+        - Anomalous variables
+        - Expected vs observed behavior"""
 
         return prompt
-
 
     def forward(self, x_enc):
         B, L, M = x_enc.shape  # B: batch size, L: sequence length, M: feature dim
