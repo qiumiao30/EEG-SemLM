@@ -31,7 +31,7 @@ The project repository already includes core dataset files:
 ### 2. Complete Dataset Download
 The complete EEG dataset files are large in size. Please download them from Google Drive:
 
-**[Click here to download the complete dataset](Please add Google Drive link here)**
+**[Click here to download the complete dataset]**
 
 After downloading, extract the files and place them in the directory structure mentioned above.
 
