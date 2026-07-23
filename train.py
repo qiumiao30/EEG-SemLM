@@ -187,7 +187,7 @@ if __name__ == "__main__":
     # Some suggestions for POT args
     level_q_dict = {
         "EEG": (0.95, 0.05),
-        "EEG2": (0.95, 0.05),
+        "EEG2": (0.88, 0.12),
     }
     key = "SMD-" + args.group[0] if args.dataset == "SMD" else args.dataset
     level, q = level_q_dict[key]
