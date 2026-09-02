@@ -68,7 +68,7 @@ class Model(nn.Module):
         midline_avg = calculate_group_average(midline_indices)
         
         # Construct the prompt following the specified format
-        prompt = f"""Task: Seizure prediction in EEG data
+        prompt = f"""Task: Seizure detection in EEG data
 
         Monitored Variables: {', '.join(channel_names)}
 
